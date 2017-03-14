@@ -1,0 +1,111 @@
+---
+- name: Prepare OpenShift cluster to run ManageIQ
+  hosts: cluster
+  environment:
+#    PATH: $PATH:~/.bin
+  vars:
+    pv: |
+      apiVersion: v1
+      kind: PersistentVolume
+      metadata:
+        name: manageiq
+      spec:
+        capacity:
+          storage: 20Gi
+        accessModes:
+          - ReadWriteOnce
+        hostPath:
+          path: /home/hild/src/oc/volumes
+        persistentVolumeReclaimPolicy: Recycle
+
+      apiVersion: v1
+
+    manage_iq_tasks:
+      - policy add-role-to-user -n management-infra admin -z management-admin
+      - policy add-role-to-user -n management-infra management-infra-admin -z management-admin
+      - policy add-cluster-role-to-user cluster-reader system:serviceaccount:management-infra:management-admin
+      - policy add-scc-to-user privileged system:serviceaccount:management-infra:management-admin
+      - policy add-cluster-role-to-user system:image-puller system:serviceaccount:management-infra:inspector-admin
+      - policy add-scc-to-user privileged system:serviceaccount:management-infra:inspector-admin
+      - policy add-cluster-role-to-user self-provisioner system:serviceaccount:management-infra:management-admin
+      - policy add-cluster-role-to-user hawkular-metrics-admin system:serviceaccount:management-infra:management-admin
+
+  tasks:
+  - name: Create temp directory for templates
+    command: mktemp -d /tmp/openshift-ansible-XXXXXXX
+    register: mktemp
+    changed_when: False
+
+  - name: Copy App Template
+    template:
+      dest: "{{ mktemp.stdout }}/miq-template-monolithic.yaml"
+      src: manageiq-pods/templates/miq-template-monolithic.yaml
+
+  - name: Copy PV Template
+    template:
+      dest: "{{ mktemp.stdout }}/miq-pv.yaml"
+      src: manageiq-pods/miq-pv-example.yaml
+
+  - name: Verify oc version
+    shell: oc version
+    register: command_result
+    failed_when:
+      - "'oc v1.4' not in command_result.stdout"
+      - "'oc v1.3' not in command_result.stdout"
+    changed_when: command_result.rc != 0
+
+  - name: Login as developer
+    shell: oc login -u developer -p developer
+    register: command_result
+    changed_when: command_result.rc != 0
+
+  - name: Create miq project
+    shell: oc new-project miq || /bin/true
+
+  - name: Test if service account exists
+    shell: oc get serviceaccount miq-sa
+    register: serviceaccount
+    changed_when: false
+    failed_when: false
+
+  - name: Create service account for miq
+    shell: oc create serviceaccount miq-sa
+    when: serviceaccount.rc == 1
+
+  - name: Login as system:admin
+    shell: oc login -u system:admin
+
+  - name: Add service account to privileged
+    shell: oadm policy add-scc-to-user privileged system:serviceaccount:miq:default
+
+  - name: Add service account to anyuid
+    shell: oadm policy add-scc-to-user anyuid system:serviceaccount:miq:default
+
+  - name: Check for PV
+    shell: oc get pv
+    register: command_result
+
+  - name: Create Persisten Volume
+    command: oc create -f {{ mktemp.stdout }}/miq-pv.yaml
+    when: "'manageiq' not in command_result.stdout"
+
+  - name: Login as developer
+    shell: oc login -u developer -p developer
+
+  - name: Remove template
+    shell: oc delete template manageiq-monolithic || /bin/true
+
+  - name: Create App Template
+    command: oc create -f {{ mktemp.stdout }}/miq-template-monolithic.yaml
+
+
+
+#  - name: Configure role/user permissions
+#    command: oc adm {{item}}
+#    with_items: "{{manage_iq_tasks}}"
+#    register: osmiq_perm_task
+#    failed_when: "'already exists' not in osmiq_perm_task.stderr and osmiq_perm_task.rc != 0"
+#    changed_when: osmiq_perm_task.rc == 0
+#    # AUDIT:changed_when_note: Checking the return code is insufficient
+#    # here. We really need to compare the current role/user permissions
+#    # with their expected state. I think we may have a module for this?
