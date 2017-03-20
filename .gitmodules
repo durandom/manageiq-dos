@@ -1,0 +1,6 @@
+[submodule "manageiq-pods"]
+	path = manageiq-pods
+	url = git@github.com:durandom/manageiq-pods.git
+[submodule "openshift-ansible"]
+	path = openshift-ansible
+	url = https://github.com/openshift/openshift-ansible.git
