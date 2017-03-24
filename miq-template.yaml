@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: manageiq
+metadata:
+  name: manageiq
+  annotations:
+    description: "ManageIQ appliance"
+    tags: "instant-app,manageiq,miq"
+    iconClass: "icon-rails"
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: "Exposes and load balances ManageIQ pods"
+    name: ${NAME}
+  spec:
+    ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 80
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: 443
+    selector:
+      name: ${NAME}
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: ${NAME}
+  spec:
+    host: ${APPLICATION_DOMAIN}
+    port:
+      targetPort: https
+    tls:
+      termination: passthrough
+    to:
+      kind: Service
+      name: ${NAME}
+- apiVersion: v1
+  kind: "DeploymentConfig"
+  metadata:
+    name: ${NAME}
+    annotations:
+      description: "Defines how to deploy the ManageIQ appliance"
+  spec:
+    template:
+      metadata:
+        labels:
+          name: ${NAME}
+        name: ${NAME}
+      spec:
+        containers:
+        - image: manageiq/manageiq:latest
+          imagePullPolicy: IfNotPresent
+          name: manageiq
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 480
+            timeoutSeconds: 3
+          ports:
+          - containerPort: 80
+            protocol: TCP
+          - containerPort: 443
+            protocol: TCP
+          securityContext:
+            privileged: true
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 200
+            timeoutSeconds: 3
+    replicas: 1
+    selector:
+      name: ${NAME}
+    triggers:
+      - type: "ConfigChange"
+      - type: "ImageChange"
+        imageChangeParams:
+          automatic: false
+          containerNames:
+            - "manageiq"
+          from:
+            kind: "ImageStreamTag"
+            name: "manageiq:latest"
+    strategy:
+      type: "Recreate"
+      recreateParams:
+         timeoutSeconds: 1200
+parameters:
+  -
+    name: "NAME"
+    displayName: "Name"
+    required: true
+    description: "The name assigned to all of the frontend objects defined in this template."
+    value: manageiq
+  -
+    name: "APPLICATION_DOMAIN"
+    displayName: "Application Hostname"
+    description: "The exposed hostname that will route to the application service, if left blank a value will be defaulted."
+    value: ""

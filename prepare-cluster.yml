@@ -1,6 +1,6 @@
 ---
 - name: Prepare OpenShift cluster to run ManageIQ
-  hosts: cluster
+  hosts: all
   environment:
 #    PATH: $PATH:~/.bin
   vars:
@@ -38,6 +38,11 @@
 
   - name: Copy App Template
     template:
+      dest: "{{ mktemp.stdout }}/miq-template.yaml"
+      src: miq-template.yaml
+
+  - name: Copy App Template
+    template:
       dest: "{{ mktemp.stdout }}/miq-template-monolithic.yaml"
       src: manageiq-pods/templates/miq-template-monolithic.yaml
 
@@ -53,6 +58,15 @@
       - "'oc v1.4' not in command_result.stdout"
       - "'oc v1.3' not in command_result.stdout"
     changed_when: command_result.rc != 0
+
+  - name: Cluster status
+    shell: oc status
+    register: command_result
+    failed_when: false
+
+  - name: Startup cluster
+    shell: oc cluster up
+    when: "command_result.rc != 0"
 
   - name: Login as developer
     shell: oc login -u developer -p developer
@@ -95,8 +109,14 @@
   - name: Remove template
     shell: oc delete template manageiq-monolithic || /bin/true
 
-  - name: Create App Template
+  - name: Create Persistent App Template
     command: oc create -f {{ mktemp.stdout }}/miq-template-monolithic.yaml
+
+  - name: Remove template
+    shell: oc delete template manageiq || /bin/true
+
+  - name: Create App Template
+    command: oc create -f {{ mktemp.stdout }}/miq-template.yaml
 
 
 
