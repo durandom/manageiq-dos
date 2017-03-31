@@ -22,7 +22,6 @@ RUN source /etc/default/evm && \
   systemctl enable rh-postgresql95-postgresql && \
   rm /tmp/pg_dump.backup
 
-#  ${APP_ROOT}/bin/rails db:migrate && \
 # give systemd the correct shutdown signal
 STOPSIGNAL SIGRTMIN+3
 COPY entrypoint /usr/bin
