@@ -1,0 +1,15 @@
+#!/bin/bash
+
+env > /container.env.vars
+
+DATA_DIR=/var/opt/rh/rh-postgresql95/lib/pgsql/
+
+if [[ $@ == "/usr/sbin/init" ]] ; then
+  if [ ! -f "${DATA_DIR}/data/PG_VERSION" ] ; then
+    echo "syncing db"
+    rsync -av --quiet /var/data $DATA_DIR
+  fi
+fi
+
+exec "$@"
+
