@@ -1,0 +1,10 @@
+# Name: manageiq-app
+# Description: config required to run manageiq on openshift
+
+oc adm policy add-scc-to-user privileged system:serviceaccount:myproject:default
+oc create -f miq-template.yaml -n myproject
+
+echo NOTE: to fetch all required images change the openshift config via
+echo minishift openshift config set --target master --patch '{"imagePolicyConfig": {"maxImagesBulkImportedPerRepository": 100}}'
+echo also increase the memory usage to 8GB via
+echo minishift config set memory 8192
