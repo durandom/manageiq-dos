@@ -11,6 +11,6 @@ cat <<EOT
 token = '$TOKEN'
 host  = '$IP'
 os = ManageIQ::Providers::Openshift::ContainerManager
-os.create(:name => "Minishift", :hostname => host, :port => 8443, :ipaddress => host, :guid => MiqUUID.new_guid, :zone => Zone.first, :storage_profiles => [], :security_protocol => "ssl-without-validation")
+os.create(:name => "Minishift", :hostname => host, :port => 8443, :ipaddress => host, :guid => SecureRandom.uuid, :zone => Zone.first, :storage_profiles => [], :security_protocol => "ssl-without-validation")
 os.last.update_authentication(:bearer => {:auth_key => token, :save => true})
 EOT
