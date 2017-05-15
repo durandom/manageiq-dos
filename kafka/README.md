@@ -22,12 +22,21 @@ echo "schwifty" | oc rsh $KAFKA_POD bin/kafka-console-producer.sh --broker-list 
 # read from topic
 oc rsh $KAFKA_POD bin/kafka-console-consumer.sh --bootstrap-server apache-kafka:9092 --topic funky --from-beginning
 
-# forward broker port to localhost
-# see https://github.com/minishift/minishift/issues/887
-oc port-forward $KAFKA_POD 9092
-kafkacat -L -b localhost:9092
+# lookup nodePort from ingress service
+oc export svc apache-kafka-ingress
+# ...
+#   ports:
+#   - name: port-1
+#     nodePort: 31956
+#     port: 9092
+#     protocol: TCP
+#     targetPort: 9092
+kafkacat -L -b $(minishift ip):31956
 ```
 
+## Gotchas
+
+You might need to add `127.0.0.1 localhost apache-kafka` to `/etc/hosts` because the kafka broker announces it's name
 
 ## Links and Credits
 
