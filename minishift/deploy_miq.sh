@@ -5,7 +5,7 @@ set -x
 oc login -u developer -p developer
 oc process --parameters manageiq
 
-NAME=$1
+NAME=manageiq
 TAG=latest
 
 oc new-app --template=manageiq \
